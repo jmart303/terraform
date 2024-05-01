@@ -16,6 +16,8 @@ resource "aws_key_pair" "infra-key" {
   public_key = file(var.public_key_path)
 }
 
+# Get vpc and subnets
+# ----------------------
 data "aws_vpc" "selected" {
   id = var.vpc_id
 }
@@ -27,17 +29,44 @@ data "aws_subnets" "test-subnets" {
   }
 }
 
-data "aws_subnet" "example" {
+data "aws_subnet" "tst-subnet" {
   for_each = toset(data.aws_subnets.test-subnets.ids)
   id       = each.value
 }
 
 output "subnet_cidr_blocks" {
-  value = [for s in data.aws_subnet.example : s.cidr_block]
+  value = [for s in data.aws_subnet.tst-subnet : s.cidr_block]
 }
 
 output "subnet_details" {
-  value = [for s in data.aws_subnet.example : s.tags.Name]
+  value = [for s in data.aws_subnet.tst-subnet : s.tags.Name]
+}
+
+# Get availability zones with t3.micro support
+# ----------------------
+data "aws_availability_zones" "az" {
+  filter {
+    name   = "opt-in-status"
+    values = ["opt-in-not-required"]
+  }
+}
+
+data "aws_ec2_instance_type_offerings" "instance_type" {
+  for_each = toset(data.aws_availability_zones.az.names)
+  filter {
+    name   = "instance-type"
+    values = ["t3.micro"]
+  }
+  filter {
+    name   = "location"
+    values = [each.key]
+  }
+  location_type = "availability-zone"
+}
+
+output "output_az" {
+  value = keys({for az, details in data.aws_ec2_instance_type_offerings.instance_type:
+    az => details.instance_types if length(details.instance_types) != 0 })
 }
 
 module "web_security_group" {

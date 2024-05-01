@@ -1,3 +1,5 @@
+# assigning names using setproduct to get all possible combinations.
+
 locals {
   region  = "us-east-1"
   subnets = {
@@ -32,3 +34,5 @@ resource "aws_subnet" "aws_subnets" {
     Name = each.value.Name
   }
 }
+
+# ignore red.. IDE not mapping properly
